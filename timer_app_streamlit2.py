@@ -1,4 +1,5 @@
 import streamlit as st
+import pandas as pd
 from datetime import datetime, timedelta
 from streamlit_autorefresh import st_autorefresh
 
@@ -28,7 +29,6 @@ timers_data = [
     ("Supore", 3720, "05:15 PM"),
 ]
 
-# TimerEntry class
 class TimerEntry:
     def __init__(self, name, interval_minutes, last_time_str):
         self.name = name
@@ -39,14 +39,16 @@ class TimerEntry:
         parsed_time = datetime.strptime(f"{today} {last_time_str}", "%Y-%m-%d %I:%M %p")
         if parsed_time > datetime.now():
             parsed_time -= timedelta(days=1)
+
+        # Roll forward until last spawn <= now
+        while parsed_time + timedelta(minutes=interval_minutes) <= datetime.now():
+            parsed_time += timedelta(minutes=interval_minutes)
+
         self.last_time = parsed_time
         self.update_next()
 
     def update_next(self):
         self.next_time = self.last_time + timedelta(seconds=self.interval)
-        while self.next_time < datetime.now():
-            self.last_time = self.next_time
-            self.next_time = self.last_time + timedelta(seconds=self.interval)
 
     def countdown(self):
         return self.next_time - datetime.now()
@@ -63,64 +65,47 @@ class TimerEntry:
             return f"{days}d {hours:02}:{minutes:02}:{seconds:02}"
         return f"{hours:02}:{minutes:02}:{seconds:02}"
 
-    def format_colored_countdown(self):
-        seconds = self.countdown().total_seconds()
-        if seconds < 60:
-            color = "red"
-        elif seconds < 300:
-            color = "orange"
-        else:
-            color = "green"
-        return f"<span style='color:{color}; font-weight:bold'>{self.format_countdown()}</span>"
-
 # Streamlit app
 st.set_page_config(page_title="Lord9 Boss Timer", layout="wide")
 st.title("Lord9 Boss Timer")
 
-# Auto-refresh every 1 second
+# Auto-refresh every 1 sec
 st_autorefresh(interval=1000, key="timer_refresh")
 
-# Initialize timers
+# Build DataFrame
 timers = [TimerEntry(*data) for data in timers_data]
+df = pd.DataFrame([{
+    "Name": t.name,
+    "Interval (min)": t.interval_minutes,
+    "Last Time": t.last_time.strftime("%Y-%m-%d %I:%M %p"),
+    "Countdown": t.format_countdown(),
+    "Next Time": t.next_time.strftime("%Y-%m-%d %I:%M %p")
+} for t in sorted(timers, key=lambda x: x.countdown())])
 
-# Update timers
-for t in timers:
-    t.update_next()
+# Color styling
+def highlight_countdown(val):
+    try:
+        parts = val.replace("d ", ":").split(":")
+        if "d" in val:  # has days
+            total_seconds = int(parts[0]) * 86400 + int(parts[1]) * 3600 + int(parts[2]) * 60 + int(parts[3])
+        else:
+            total_seconds = int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
+    except:
+        return ""
 
-# Sort by countdown
-timers_sorted = sorted(timers, key=lambda x: x.countdown())
+    if total_seconds < 60:
+        color = "red"
+    elif total_seconds < 300:
+        color = "orange"
+    else:
+        color = "green"
+    return f"color: {color}; font-weight: bold"
 
-# Build HTML table
-rows = []
-for i, t in enumerate(timers_sorted):
-    # Highlight next boss
-    style = "background-color:#D1FFD6" if i == 0 else ""
-    rows.append(f"""
-        <tr style="{style}">
-            <td>{t.name}</td>
-            <td>{t.interval_minutes}</td>
-            <td>{t.last_time.strftime("%Y-%m-%d %I:%M %p")}</td>
-            <td>{t.format_colored_countdown()}</td>
-            <td>{t.next_time.strftime("%Y-%m-%d %I:%M %p")}</td>
-        </tr>
-    """)
+# Highlight soonest boss row
+def highlight_first_row(row):
+    return ['background-color: #D1FFD6' if row.name == 0 else '' for _ in row]
 
-html_table = f"""
-<table border="1" cellpadding="5" cellspacing="0" style="border-collapse:collapse; width:100%">
-    <thead>
-        <tr style="background-color:#A6C8FF">
-            <th>Name</th>
-            <th>Interval (min)</th>
-            <th>Last Time</th>
-            <th>Countdown</th>
-            <th>Next Time</th>
-        </tr>
-    </thead>
-    <tbody>
-        {''.join(rows)}
-    </tbody>
-</table>
-"""
+styled_df = df.style.apply(highlight_first_row, axis=1).applymap(highlight_countdown, subset=["Countdown"])
 
-# Render HTML table
-st.markdown(html_table, unsafe_allow_html=True)
+# Render table
+st.dataframe(styled_df, use_container_width=True, height=700)
