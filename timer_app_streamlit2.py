@@ -1,4 +1,4 @@
-# Repo-ready Streamlit app for Lord9 Boss Timer with Last Times calculated from given Next Times
+# Repo-ready Streamlit app for Lord9 Boss Timer with Last Times calculated from Next Times and fixed datetime parsing
 
 import streamlit as st
 import pandas as pd
@@ -9,7 +9,7 @@ from streamlit_autorefresh import st_autorefresh
 # Manila timezone
 MANILA = ZoneInfo("Asia/Manila")
 
-# Original intervals in minutes
+# Intervals in minutes
 intervals = {
     "Amentis": 1740,
     "General Aqulcus": 1740,
@@ -29,7 +29,7 @@ intervals = {
     "Supore": 3720,
 }
 
-# Next Times you sent (as strings)
+# Next times you provided
 next_times_str = [
     "2025-09-18 09:42 PM",
     "2025-09-18 09:45 PM",
@@ -80,7 +80,14 @@ class TimerEntry:
         self.interval_minutes = interval_minutes
         self.interval = interval_minutes * 60
 
-        parsed_time = datetime.strptime(last_time_str, "%Y-%m-%d %I:%M %p").replace(tzinfo=MANILA)
+        # Fixed parsing to handle both full datetime and time-only strings
+        try:
+            parsed_time = datetime.strptime(last_time_str, "%Y-%m-%d %I:%M %p")
+        except ValueError:
+            today = datetime.now(tz=MANILA).date()
+            parsed_time = datetime.strptime(f"{today} {last_time_str}", "%Y-%m-%d %I:%M %p")
+        parsed_time = parsed_time.replace(tzinfo=MANILA)
+
         self.last_time = parsed_time
         self.next_time = self.last_time + timedelta(seconds=self.interval)
 
