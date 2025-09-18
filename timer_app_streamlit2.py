@@ -1,4 +1,5 @@
 import streamlit as st
+import pandas as pd
 from datetime import datetime, timedelta
 from streamlit_autorefresh import st_autorefresh
 
@@ -28,7 +29,7 @@ timers_data = [
     ("Supore", 3720, "05:15 PM"),
 ]
 
-# TimerEntry class with automatic rollover
+# TimerEntry class
 class TimerEntry:
     def __init__(self, name, interval_minutes, last_time_str):
         self.name = name
@@ -44,7 +45,6 @@ class TimerEntry:
         self.next_time = self.last_time + timedelta(seconds=self.interval)
 
     def update_next(self):
-        """Automatically roll over the next_time if it has passed."""
         while self.next_time < datetime.now():
             self.last_time = self.next_time
             self.next_time = self.last_time + timedelta(seconds=self.interval)
@@ -64,63 +64,32 @@ class TimerEntry:
             return f"{days}d {hours:02}:{minutes:02}:{seconds:02}"
         return f"{hours:02}:{minutes:02}:{seconds:02}"
 
-    def format_colored_countdown(self):
-        seconds = self.countdown().total_seconds()
-        if seconds < 60:
-            color = "red"
-        elif seconds < 300:
-            color = "orange"
-        else:
-            color = "green"
-        return f"<span style='color:{color}; font-weight:bold'>{self.format_countdown()}</span>"
-
-# Streamlit app setup
+# Streamlit setup
 st.set_page_config(page_title="Lord9 Boss Timer", layout="wide")
 st.title("Lord9 Boss Timer")
-
-# Auto-refresh every 1 second
-st_autorefresh(interval=1000, key="timer_refresh")
+st_autorefresh(interval=1000, key="refresh")
 
 # Initialize timers
 timers = [TimerEntry(*data) for data in timers_data]
 
-# Update next_time for each boss
+# Update next_time for all timers
 for t in timers:
-    t.update_next()  # <- This ensures next_time is always in the future
+    t.update_next()
 
-# Sort by countdown
+# Sort by closest countdown
 timers_sorted = sorted(timers, key=lambda x: x.countdown())
 
-# Build HTML table
-rows = []
-for i, t in enumerate(timers_sorted):
-    style = "background-color:#D1FFD6" if i == 0 else ""
-    rows.append(f"""
-        <tr style="{style}">
-            <td>{t.name}</td>
-            <td>{t.interval_minutes}</td>
-            <td>{t.last_time.strftime("%Y-%m-%d %I:%M %p")}</td>
-            <td>{t.format_colored_countdown()}</td>
-            <td>{t.next_time.strftime("%Y-%m-%d %I:%M %p")}</td>
-        </tr>
-    """)
+# Build DataFrame
+df = pd.DataFrame({
+    "Name": [t.name for t in timers_sorted],
+    "Interval (min)": [t.interval_minutes for t in timers_sorted],
+    "Last Time": [t.last_time.strftime("%Y-%m-%d %I:%M %p") for t in timers_sorted],
+    "Countdown": [t.format_countdown() for t in timers_sorted],
+    "Next Time": [t.next_time.strftime("%Y-%m-%d %I:%M %p") for t in timers_sorted],
+})
 
-html_table = f"""
-<table border="1" cellpadding="5" cellspacing="0" style="border-collapse:collapse; width:100%">
-    <thead>
-        <tr style="background-color:#A6C8FF">
-            <th>Name</th>
-            <th>Interval (min)</th>
-            <th>Last Time</th>
-            <th>Countdown</th>
-            <th>Next Time</th>
-        </tr>
-    </thead>
-    <tbody>
-        {''.join(rows)}
-    </tbody>
-</table>
-"""
+# Highlight next boss row
+def highlight_next(row):
+    return ['background-color: #D1FFD6' if i == 0 else '' for i in range(len(row))]
 
-# Render the table
-st.markdown(html_table, unsafe_allow_html=True)
+st.dataframe(df.style.apply(highlight_next, axis=0))
