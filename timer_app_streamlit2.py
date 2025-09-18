@@ -6,7 +6,7 @@ from streamlit_autorefresh import st_autorefresh
 # Auto-refresh every 1 second
 st_autorefresh(interval=1000, key="timer_refresh")
 
-# Sample data (updated Last Times for Venatus, Viorent, Ego)
+# Sample data (FRIOX removed, Lady Dalia resynced)
 data = [
     {"Name": "Venatus", "Interval": 600, "Last Time": "12:31 PM"},
     {"Name": "Viorent", "Interval": 600, "Last Time": "12:32 PM"},
@@ -17,8 +17,7 @@ data = [
     {"Name": "Shuliar", "Interval": 2100, "Last Time": "04:49 PM"},
     {"Name": "Larba", "Interval": 2100, "Last Time": "04:55 PM"},
     {"Name": "Catena", "Interval": 2100, "Last Time": "05:12 PM"},
-    {"Name": "Lady Dalia", "Interval": 1080, "Last Time": "10:42 AM"},
-    {"Name": "FRIOX", "Interval": 1440, "Last Time": "05:00 AM"},
+    {"Name": "Lady Dalia", "Interval": 1080, "Last Time": "10:42 AM"},  # resynced
     {"Name": "Titore", "Interval": 2220, "Last Time": "04:58 PM"},
     {"Name": "Duplican", "Interval": 2880, "Last Time": "04:36 PM"},
     {"Name": "Wannitas", "Interval": 2880, "Last Time": "04:40 PM"},
@@ -54,27 +53,33 @@ def color_countdown(val):
 
 # Calculate countdowns and target times
 now = datetime.now()
-next_times = []
-target_dates = []
-countdowns = []
-countdown_seconds = []
-highlight_names = []
-updated_last_times = []
+next_times, target_dates, countdowns, countdown_seconds, highlight_names, updated_last_times = [], [], [], [], [], []
+
+shift_zone = False
 
 for i, row in df.iterrows():
+    if row["Name"] == "General Aquleus":
+        shift_zone = True  # everything from General Aquleus downward shifted -1 day
+
     # Parse last time as today’s datetime
     last_dt = datetime.strptime(row["Last Time"], "%I:%M %p").replace(
         year=now.year, month=now.month, day=now.day
     )
     interval = timedelta(minutes=row["Interval"])
-
-    # Compute next time strictly based on interval
     next_time = last_dt + interval
 
-    # If already passed, roll forward
+    # Roll forward if already passed
     while next_time <= now:
         last_dt = next_time
         next_time = last_dt + interval
+
+    # Apply -1 day correction for bosses below Ego
+    if shift_zone:
+        next_time -= timedelta(days=1)
+
+    # Special case: re-sync Lady Dalia (force to today if negative)
+    if row["Name"] == "Lady Dalia" and next_time < now:
+        next_time = now + interval
 
     # Countdown
     countdown = next_time - now
@@ -99,24 +104,6 @@ df["Last Time"] = updated_last_times
 df["Countdown"] = countdowns
 df["Next Time"] = next_times
 df["Target Date"] = target_dates
-
-# 🔥 Apply -1 day shift for bosses below Ego
-shift_from = "General Aquleus"
-for i, row in df.iterrows():
-    clean_name = row["Name"].replace("<span style='color:red; font-weight:bold;'>","").replace("</span>","")
-    if clean_name == shift_from:
-        shift_index = i
-        break
-
-for i in range(shift_index, len(df)):
-    target_dt = datetime.strptime(df.at[i, "Target Date"], "%Y-%m-%d %I:%M:%S %p")
-    target_dt -= timedelta(days=1)  # shift -1 day
-    df.at[i, "Target Date"] = target_dt.strftime("%Y-%m-%d %I:%M:%S %p")
-
-    # Recompute countdown
-    countdown = target_dt - now
-    countdown_str = str(countdown).split(".")[0]
-    df.at[i, "Countdown"] = color_countdown(countdown_str)
 
 # Sort bosses almost spawning to top
 df["Seconds Remaining"] = countdown_seconds
