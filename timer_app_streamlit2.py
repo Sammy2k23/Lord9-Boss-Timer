@@ -11,24 +11,21 @@ data = [
     {"Name": "Venatus", "Interval": 600, "Last Time": "12:31 PM"},
     {"Name": "Viorent", "Interval": 600, "Last Time": "12:32 PM"},
     {"Name": "Ego", "Interval": 1260, "Last Time": "01:32 PM"},
-    {"Name": "Araneo", "Interval": 1440, "Last Time": "04:36 PM"},
-    {"Name": "Livera", "Interval": 1440, "Last Time": "04:36 PM"},
-    {"Name": "Undomiel", "Interval": 1440, "Last Time": "04:36 PM"},
-    {"Name": "Amentis", "Interval": 1740, "Last Time": "04:42 PM"},
-    {"Name": "General Aqulucus", "Interval": 1920, "Last Time": "04:47 PM"},
+    {"Name": "General Aquleus", "Interval": 1740, "Last Time": "04:45 PM"},
     {"Name": "Baron Braudmore", "Interval": 1920, "Last Time": "04:37 PM"},
-    {"Name": "Gareth", "Interval": 2100, "Last Time": "04:39 PM"},
-    {"Name": "Shuliar", "Interval": 2100, "Last Time": "04:39 PM"},
+    {"Name": "Gareth", "Interval": 1920, "Last Time": "04:38 PM"},
+    {"Name": "Shuliar", "Interval": 2100, "Last Time": "04:49 PM"},
     {"Name": "Larba", "Interval": 2100, "Last Time": "04:55 PM"},
     {"Name": "Catena", "Interval": 2100, "Last Time": "05:12 PM"},
-    {"Name": "Lady Dalia", "Interval": 2280, "Last Time": "04:58 AM"},
-    {"Name": "Titore", "Interval": 2220, "Last Time": "04:36 PM"},
+    {"Name": "Lady Dalia", "Interval": 1080, "Last Time": "10:42 AM"},
+    {"Name": "FRIOX", "Interval": 1440, "Last Time": "05:00 AM"},
+    {"Name": "Titore", "Interval": 2220, "Last Time": "04:58 PM"},
     {"Name": "Duplican", "Interval": 2880, "Last Time": "04:36 PM"},
-    {"Name": "Wannitas", "Interval": 2880, "Last Time": "04:36 PM"},
+    {"Name": "Wannitas", "Interval": 2880, "Last Time": "04:40 PM"},
     {"Name": "Metus", "Interval": 2880, "Last Time": "04:46 PM"},
-    {"Name": "Asta", "Interval": 2880, "Last Time": "04:46 PM"},
+    {"Name": "Asta", "Interval": 3720, "Last Time": "04:53 PM"},
     {"Name": "Ordo", "Interval": 3720, "Last Time": "04:59 PM"},
-    {"Name": "Secreta", "Interval": 3720, "Last Time": "05:07 AM"},
+    {"Name": "Secreta", "Interval": 3720, "Last Time": "05:07 PM"},
     {"Name": "Supore", "Interval": 3720, "Last Time": "05:15 PM"},
 ]
 
@@ -98,10 +95,28 @@ for i, row in df.iterrows():
 
 # Update DataFrame
 df["Name"] = highlight_names
-df["Last Time"] = updated_last_times  # fixed rolling last time
+df["Last Time"] = updated_last_times
 df["Countdown"] = countdowns
 df["Next Time"] = next_times
 df["Target Date"] = target_dates
+
+# 🔥 Apply -1 day shift for bosses below Ego
+shift_from = "General Aquleus"
+for i, row in df.iterrows():
+    clean_name = row["Name"].replace("<span style='color:red; font-weight:bold;'>","").replace("</span>","")
+    if clean_name == shift_from:
+        shift_index = i
+        break
+
+for i in range(shift_index, len(df)):
+    target_dt = datetime.strptime(df.at[i, "Target Date"], "%Y-%m-%d %I:%M:%S %p")
+    target_dt -= timedelta(days=1)  # shift -1 day
+    df.at[i, "Target Date"] = target_dt.strftime("%Y-%m-%d %I:%M:%S %p")
+
+    # Recompute countdown
+    countdown = target_dt - now
+    countdown_str = str(countdown).split(".")[0]
+    df.at[i, "Countdown"] = color_countdown(countdown_str)
 
 # Sort bosses almost spawning to top
 df["Seconds Remaining"] = countdown_seconds
