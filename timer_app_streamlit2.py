@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo  # Python 3.9+ only
+from zoneinfo import ZoneInfo  # Python 3.9+
 from streamlit_autorefresh import st_autorefresh
 
 # Manila timezone
@@ -40,11 +40,9 @@ class TimerEntry:
         self.interval_minutes = interval_minutes
         self.interval = interval_minutes * 60
 
-        # Use Manila timezone for "today"
         today = datetime.now(tz=MANILA).date()
         parsed_time = datetime.strptime(f"{today} {last_time_str}", "%Y-%m-%d %I:%M %p")
         parsed_time = parsed_time.replace(tzinfo=MANILA)
-
         if parsed_time > datetime.now(tz=MANILA):
             parsed_time -= timedelta(days=1)
 
@@ -72,9 +70,19 @@ class TimerEntry:
             return f"{days}d {hours:02}:{minutes:02}:{seconds:02}"
         return f"{hours:02}:{minutes:02}:{seconds:02}"
 
+    def countdown_color(self):
+        """Return color based on remaining time"""
+        seconds = self.countdown().total_seconds()
+        if seconds < 60:
+            return "red"
+        elif seconds < 300:
+            return "orange"
+        else:
+            return "green"
+
 # Streamlit setup
 st.set_page_config(page_title="Lord9 Boss Timer", layout="wide")
-st.title("Lord9 Boss Timer")
+st.title("🛡️ Lord9 Boss Timer (Manila Time GMT+8)")
 st_autorefresh(interval=1000, key="refresh")
 
 # Initialize timers
@@ -94,7 +102,12 @@ df = pd.DataFrame({
     "Last Time": [t.last_time.strftime("%Y-%m-%d %I:%M %p") for t in timers_sorted],
     "Countdown": [t.format_countdown() for t in timers_sorted],
     "Next Time": [t.next_time.strftime("%Y-%m-%d %I:%M %p") for t in timers_sorted],
+    "Color": [t.countdown_color() for t in timers_sorted],
 })
 
-# Display table without highlighting
-st.dataframe(df.reset_index(drop=True))
+# Apply countdown colors
+def color_countdown(s):
+    return [f"color: {c}" for c in df["Color"]]
+
+# Display table
+st.dataframe(df.drop(columns=["Color"]).style.apply(color_countdown, subset=["Countdown"], axis=0))
