@@ -1,105 +1,124 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
+from streamlit_autorefresh import st_autorefresh
 
-# ========================
-# Boss Data
-# ========================
-boss_data = [
-    {"name": "Venatus", "interval": 600, "last_time": "02:31 AM"},
-    {"name": "Viorent", "interval": 600, "last_time": "02:32 AM"},
-    {"name": "Ego", "interval": 1260, "last_time": "04:32 PM"},
-    {"name": "Araneo", "interval": 1440, "last_time": "04:33 PM"},
-    {"name": "Livera", "interval": 1440, "last_time": "04:36 PM"},
-    {"name": "Undomiel", "interval": 1440, "last_time": "04:42 PM"},
-    {"name": "Amentis", "interval": 1740, "last_time": "04:42 PM"},
-    {"name": "General Aquleus", "interval": 1740, "last_time": "04:45 PM"},
-    {"name": "Baron Braudmore", "interval": 1920, "last_time": "04:37 PM"},
-    {"name": "Gareth", "interval": 1920, "last_time": "04:38 PM"},
-    {"name": "Shuliar", "interval": 2100, "last_time": "04:49 PM"},
-    {"name": "Larba", "interval": 2100, "last_time": "04:55 PM"},
-    {"name": "Catena", "interval": 2100, "last_time": "05:12 PM"},
-    {"name": "Lady Dalia", "interval": 1080, "last_time": "10:42 AM"},
-    {"name": "Titore", "interval": 2220, "last_time": "04:58 PM"},
-    {"name": "Duplican", "interval": 2880, "last_time": "04:36 PM"},
-    {"name": "Wannitas", "interval": 2880, "last_time": "04:40 PM"},
-    {"name": "Metus", "interval": 2880, "last_time": "04:46 PM"},
-    {"name": "Asta", "interval": 3720, "last_time": "04:53 PM"},
-    {"name": "Ordo", "interval": 3720, "last_time": "04:59 PM"},
-    {"name": "Secreta", "interval": 3720, "last_time": "05:07 PM"},
-    {"name": "Supore", "interval": 3720, "last_time": "05:15 PM"},
+# Auto-refresh every 1 second
+st_autorefresh(interval=1000, key="timer_refresh")
+
+# Boss data (updated, FRIOX removed, Lady Dalia resynced)
+data = [
+    {"Name": "Venatus", "Interval": 600, "Last Time": "12:31 PM"},
+    {"Name": "Viorent", "Interval": 600, "Last Time": "12:32 PM"},
+    {"Name": "Ego", "Interval": 1260, "Last Time": "01:32 PM"},
+    {"Name": "Araneo", "Interval": 1440, "Last Time": "04:36 PM"},
+    {"Name": "Livera", "Interval": 1440, "Last Time": "04:36 PM"},
+    {"Name": "Undomiel", "Interval": 1440, "Last Time": "04:36 PM"},
+    {"Name": "Amentis", "Interval": 1740, "Last Time": "04:42 PM"},
+    {"Name": "General Aquleus", "Interval": 1920, "Last Time": "04:47 PM"},
+    {"Name": "Baron Braudmore", "Interval": 1920, "Last Time": "04:37 PM"},
+    {"Name": "Gareth", "Interval": 2100, "Last Time": "04:39 PM"},
+    {"Name": "Shuliar", "Interval": 2100, "Last Time": "04:39 PM"},
+    {"Name": "Larba", "Interval": 2100, "Last Time": "04:55 PM"},
+    {"Name": "Catena", "Interval": 2100, "Last Time": "05:12 PM"},
+    {"Name": "Lady Dalia", "Interval": 1080, "Last Time": "04:42 AM"},  # Resynced
+    {"Name": "Titore", "Interval": 2220, "Last Time": "04:36 PM"},
+    {"Name": "Duplican", "Interval": 2880, "Last Time": "04:36 PM"},
+    {"Name": "Wannitas", "Interval": 2880, "Last Time": "04:36 PM"},
+    {"Name": "Metus", "Interval": 2880, "Last Time": "04:46 PM"},
+    {"Name": "Asta", "Interval": 2880, "Last Time": "04:46 PM"},
+    {"Name": "Ordo", "Interval": 3720, "Last Time": "04:59 PM"},
+    {"Name": "Secreta", "Interval": 3720, "Last Time": "05:07 AM"},
+    {"Name": "Supore", "Interval": 3720, "Last Time": "05:15 PM"},
 ]
-
-# ========================
-# Helper Functions
-# ========================
-
-def calculate_next_time(last_time_str, interval_minutes):
-    """Calculate next spawn based on last kill time + interval, always rolling forward."""
-    today = datetime.now().date()
-    last_time = datetime.strptime(last_time_str, "%I:%M %p").replace(
-        year=today.year, month=today.month, day=today.day
-    )
-    next_time = last_time + timedelta(minutes=interval_minutes)
-
-    # Keep adding interval until it's in the future
-    while next_time <= datetime.now():
-        next_time += timedelta(minutes=interval_minutes)
-
-    return last_time, next_time
-
-def get_countdown(next_time):
-    return next_time - datetime.now()
-
-# ========================
-# Streamlit Page Config
-# ========================
-st.set_page_config(page_title="Lord 9 Boss Timers", layout="wide")
-
-st.markdown(
-    "<h1 style='text-align: center; color: orange;'>⏳ Lord 9 Boss Timers (Adjusted Target Dates)</h1>",
-    unsafe_allow_html=True,
-)
-
-# ========================
-# Build Table
-# ========================
-data = []
-for boss in boss_data:
-    last_time, next_time = calculate_next_time(boss["last_time"], boss["interval"])
-    countdown = get_countdown(next_time)
-
-    # Default target date = real next_time
-    target_date = next_time
-
-    # Adjustment: Ego → Supore target dates only
-    if boss["name"] in ["Ego", "Aranco", "Livera", "Undomiel", "Amentis",
-                        "General Aquleus", "Baron Braudmore", "Gareth",
-                        "Shuliar", "Larba", "Catena", "Lady Dalia",
-                        "Titore", "Duplican", "Wannitas", "Metus",
-                        "Asta", "Ordo", "Secreta", "Supore"]:
-        target_date = target_date - timedelta(days=1)
-
-    data.append({
-        "Name": boss["name"],
-        "Interval": boss["interval"],
-        "Last Time": last_time.strftime("%I:%M %p"),
-        "Countdown": str(countdown).split(".")[0],
-        "Next Time": next_time.strftime("%I:%M %p"),
-        "Target Date": target_date.strftime("%Y-%m-%d %I:%M:%S %p"),
-    })
 
 df = pd.DataFrame(data)
 
-# ========================
-# Display Table
-# ========================
-st.dataframe(
-    df.style.set_properties(**{
-        'text-align': 'center',
-        'color': 'white',
-        'background-color': 'black'
-    }),
-    use_container_width=True,
-    height=720
-)
+st.set_page_config(page_title="Timer App", layout="wide")
+st.title("⏳ Lord 9 Boss Timers (Live Updating)")
+
+placeholder = st.empty()
+
+# Function to color countdown
+def color_countdown(val):
+    try:
+        parts = val.split(":")
+        minutes = int(parts[0]) * 60 + int(parts[1])
+        seconds = minutes * 60 + int(parts[2]) if len(parts) == 3 else minutes
+    except:
+        return val
+
+    if seconds < 300:  # <5 min
+        return f"<span style='color:red; font-weight:bold;'>{val}</span>"
+    elif seconds < 900:  # <15 min
+        return f"<span style='color:orange;'>{val}</span>"
+    else:
+        return f"<span style='color:green;'>{val}</span>"
+
+# Calculate countdowns and target times
+now = datetime.now()
+next_times = []
+target_dates = []
+countdowns = []
+countdown_seconds = []
+highlight_names = []
+updated_last_times = []
+
+for i, row in df.iterrows():
+    # Parse last time as today’s datetime
+    last_dt = datetime.strptime(row["Last Time"], "%I:%M %p").replace(
+        year=now.year, month=now.month, day=now.day
+    )
+    interval = timedelta(minutes=row["Interval"])
+
+    # Compute next time strictly based on interval
+    next_time = last_dt + interval
+
+    # If already passed, roll forward
+    while next_time <= now:
+        last_dt = next_time
+        next_time = last_dt + interval
+
+    # Countdown
+    countdown = next_time - now
+    countdown_str = str(countdown).split(".")[0]
+
+    # Target date (with adjustment for Ego → Supore)
+    target_date = next_time
+    if row["Name"] in [
+        "Ego", "Araneo", "Livera", "Undomiel", "Amentis",
+        "General Aquleus", "Baron Braudmore", "Gareth",
+        "Shuliar", "Larba", "Catena", "Lady Dalia",
+        "Titore", "Duplican", "Wannitas", "Metus",
+        "Asta", "Ordo", "Secreta", "Supore"
+    ]:
+        target_date = target_date - timedelta(days=1)
+
+    # Save updated values
+    updated_last_times.append(last_dt.strftime("%I:%M %p"))
+    next_times.append(next_time.strftime("%I:%M %p"))
+    target_dates.append(target_date.strftime("%Y-%m-%d %I:%M:%S %p"))
+    countdowns.append(color_countdown(countdown_str))
+    countdown_seconds.append(countdown.total_seconds())
+
+    # Highlight if <5min
+    if countdown.total_seconds() < 300:
+        highlight_names.append(f"<span style='color:red; font-weight:bold;'>{row['Name']}</span>")
+    else:
+        highlight_names.append(row["Name"])
+
+# Update DataFrame
+df["Name"] = highlight_names
+df["Last Time"] = updated_last_times  # fixed rolling last time
+df["Countdown"] = countdowns
+df["Next Time"] = next_times
+df["Target Date"] = target_dates
+
+# Sort bosses almost spawning to top
+df["Seconds Remaining"] = countdown_seconds
+df = df.sort_values("Seconds Remaining")
+df = df.drop(columns=["Seconds Remaining"])
+
+# Display table
+with placeholder.container():
+    st.markdown(df.to_html(escape=False, index=False), unsafe_allow_html=True)
