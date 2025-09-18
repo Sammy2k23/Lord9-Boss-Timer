@@ -6,11 +6,11 @@ from streamlit_autorefresh import st_autorefresh
 # Auto-refresh every 1 second
 st_autorefresh(interval=1000, key="timer_refresh")
 
-# Updated data (Last Times adjusted for Venatus, Viorent, Ego)
+# Sample data (updated Last Times for Venatus, Viorent, Ego)
 data = [
-    {"Name": "Venatus", "Interval": 600, "Last Time": "12:31 PM"},  # updated
-    {"Name": "Viorent", "Interval": 600, "Last Time": "12:32 PM"},  # updated
-    {"Name": "Ego", "Interval": 1260, "Last Time": "01:32 PM"},     # updated
+    {"Name": "Venatus", "Interval": 600, "Last Time": "12:31 PM"},
+    {"Name": "Viorent", "Interval": 600, "Last Time": "12:32 PM"},
+    {"Name": "Ego", "Interval": 1260, "Last Time": "01:32 PM"},
     {"Name": "Araneo", "Interval": 1440, "Last Time": "04:36 PM"},
     {"Name": "Livera", "Interval": 1440, "Last Time": "04:36 PM"},
     {"Name": "Undomiel", "Interval": 1440, "Last Time": "04:36 PM"},
@@ -62,6 +62,7 @@ target_dates = []
 countdowns = []
 countdown_seconds = []
 highlight_names = []
+updated_last_times = []
 
 for i, row in df.iterrows():
     last_time = datetime.strptime(row["Last Time"], "%I:%M %p").replace(
@@ -70,14 +71,18 @@ for i, row in df.iterrows():
     interval = timedelta(minutes=row["Interval"])
     next_time = last_time + interval
 
+    # Auto-update: if next_time has passed, roll last_time forward
     while next_time <= now:
-        next_time += interval
+        last_time = next_time
+        next_time = last_time + interval
 
     countdown = next_time - now
     countdown_str = str(countdown).split(".")[0]
 
+    # Save updated times
+    updated_last_times.append(last_time.strftime("%I:%M %p"))
     next_times.append(next_time.strftime("%I:%M %p"))
-    target_dates.append(next_time.strftime("%Y-%m-%d %I:%M:%S %p"))  # dynamic for all bosses
+    target_dates.append(next_time.strftime("%Y-%m-%d %I:%M:%S %p"))
     countdowns.append(color_countdown(countdown_str))
     countdown_seconds.append(countdown.total_seconds())
 
@@ -89,6 +94,7 @@ for i, row in df.iterrows():
 
 # Update DataFrame
 df["Name"] = highlight_names
+df["Last Time"] = updated_last_times  # auto-updated last times
 df["Countdown"] = countdowns
 df["Next Time"] = next_times
 df["Target Date"] = target_dates
