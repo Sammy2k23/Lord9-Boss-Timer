@@ -1,20 +1,13 @@
-import streamlit as st
-import pandas as pd
 from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo  # Python 3.9+
-from streamlit_autorefresh import st_autorefresh
+from zoneinfo import ZoneInfo
+import time
+import os
 
 # Manila timezone
 MANILA = ZoneInfo("Asia/Manila")
 
 # Timer data
 timers_data = [
-    ("Venatus", 600, "12:31 PM"),
-    ("Viorent", 600, "12:32 PM"),
-    ("Ego", 1260, "04:32 PM"),
-    ("Araneo", 1440, "04:33 PM"),
-    ("Livera", 1440, "04:36 PM"),
-    ("Undomiel", 1440, "04:42 PM"),
     ("Amentis", 1740, "04:42 PM"),
     ("General Aqulcus", 1740, "04:45 PM"),
     ("Baron Braudmore", 1920, "04:37 PM"),
@@ -33,7 +26,12 @@ timers_data = [
     ("Supore", 3720, "05:15 PM"),
 ]
 
-# TimerEntry class
+RESET = "\033[0m"
+RED = "\033[91m"
+YELLOW = "\033[93m"
+GREEN = "\033[92m"
+CYAN = "\033[96m"
+
 class TimerEntry:
     def __init__(self, name, interval_minutes, last_time_str):
         self.name = name
@@ -48,6 +46,11 @@ class TimerEntry:
 
         self.last_time = parsed_time
         self.next_time = self.last_time + timedelta(seconds=self.interval)
+
+        # Ensure next_time is in the future
+        while self.next_time < datetime.now(tz=MANILA):
+            self.last_time = self.next_time
+            self.next_time = self.last_time + timedelta(seconds=self.interval)
 
     def update_next(self):
         now = datetime.now(tz=MANILA)
@@ -70,44 +73,40 @@ class TimerEntry:
             return f"{days}d {hours:02}:{minutes:02}:{seconds:02}"
         return f"{hours:02}:{minutes:02}:{seconds:02}"
 
-    def countdown_color(self):
-        """Return color based on remaining time"""
-        seconds = self.countdown().total_seconds()
-        if seconds < 60:
-            return "red"
-        elif seconds < 300:
-            return "orange"
-        else:
-            return "green"
+def print_table(timers):
+    os.system('cls' if os.name == 'nt' else 'clear')
+    headers = ["Name", "Interval (min)", "Last Time", "Countdown", "Next Time"]
+    col_widths = [20, 15, 22, 15, 22]
 
-# Streamlit setup
-st.set_page_config(page_title="Lord9 Boss Timer", layout="wide")
-st.title("🛡️ Lord9 Boss Timer (Manila Time GMT+8)")
-st_autorefresh(interval=1000, key="refresh")
+    print(CYAN + "-" * sum(col_widths) + RESET)
+    print("".join(f"{h:<{w}}" for h, w in zip(headers, col_widths)))
+    print(CYAN + "-" * sum(col_widths) + RESET)
 
-# Initialize timers
-timers = [TimerEntry(*data) for data in timers_data]
+    for t in timers:
+        remaining = t.countdown().total_seconds()
+        color = GREEN if remaining >= 300 else (YELLOW if remaining >= 60 else RED)
+        countdown_str = t.format_countdown()
+        row = [
+            t.name,
+            str(t.interval_minutes),
+            t.last_time.strftime("%Y-%m-%d %I:%M %p"),
+            f"{color}{countdown_str}{RESET}",
+            t.next_time.strftime("%Y-%m-%d %I:%M %p"),
+        ]
+        print("".join(f"{val:<{w}}" for val, w in zip(row, col_widths)))
 
-# Update next_time for all timers
-for t in timers:
-    t.update_next()
+    print(CYAN + "-" * sum(col_widths) + RESET)
 
-# Sort by closest countdown
-timers_sorted = sorted(timers, key=lambda x: x.countdown())
+def run_timers():
+    timers = [TimerEntry(*data) for data in timers_data]
+    while True:
+        # Update next_time for bosses that already spawned
+        for t in timers:
+            t.update_next()
+        # Sort by closest countdown
+        timers_sorted = sorted(timers, key=lambda x: x.countdown())
+        print_table(timers_sorted)
+        time.sleep(1)
 
-# Build DataFrame
-df = pd.DataFrame({
-    "Name": [t.name for t in timers_sorted],
-    "Interval (min)": [t.interval_minutes for t in timers_sorted],
-    "Last Time": [t.last_time.strftime("%Y-%m-%d %I:%M %p") for t in timers_sorted],
-    "Countdown": [t.format_countdown() for t in timers_sorted],
-    "Next Time": [t.next_time.strftime("%Y-%m-%d %I:%M %p") for t in timers_sorted],
-    "Color": [t.countdown_color() for t in timers_sorted],
-})
-
-# Apply countdown colors
-def color_countdown(s):
-    return [f"color: {c}" for c in df["Color"]]
-
-# Display table
-st.dataframe(df.drop(columns=["Color"]).style.apply(color_countdown, subset=["Countdown"], axis=0))
+if __name__ == "__main__":
+    run_timers()
