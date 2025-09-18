@@ -1,6 +1,5 @@
 import streamlit as st
 from datetime import datetime, timedelta
-import pandas as pd
 from streamlit_autorefresh import st_autorefresh
 
 # Timer data
@@ -78,7 +77,7 @@ class TimerEntry:
 st.set_page_config(page_title="Lord9 Boss Timer", layout="wide")
 st.title("Lord9 Boss Timer")
 
-# Refresh every 1 second
+# Auto-refresh every 1 second
 st_autorefresh(interval=1000, key="timer_refresh")
 
 # Initialize timers
@@ -88,16 +87,14 @@ timers = [TimerEntry(*data) for data in timers_data]
 for t in timers:
     t.update_next()
 
-# Sort timers by countdown
+# Sort by countdown
 timers_sorted = sorted(timers, key=lambda x: x.countdown())
 
-# Build dataframe with row highlighting for next boss
+# Build HTML table
 rows = []
 for i, t in enumerate(timers_sorted):
-    if i == 0:  # Next boss
-        style = "background-color:#D1FFD6"  # Light green
-    else:
-        style = ""
+    # Highlight next boss
+    style = "background-color:#D1FFD6" if i == 0 else ""
     rows.append(f"""
         <tr style="{style}">
             <td>{t.name}</td>
@@ -125,4 +122,5 @@ html_table = f"""
 </table>
 """
 
+# Render HTML table
 st.markdown(html_table, unsafe_allow_html=True)
