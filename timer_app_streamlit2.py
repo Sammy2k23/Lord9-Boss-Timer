@@ -3,13 +3,13 @@ import pandas as pd
 from datetime import datetime, timedelta
 
 # ========================
-# Boss Data (Synced)
+# Boss Data
 # ========================
 boss_data = [
     {"name": "Venatus", "interval": 600, "last_time": "02:31 AM"},
     {"name": "Viorent", "interval": 600, "last_time": "02:32 AM"},
     {"name": "Ego", "interval": 1260, "last_time": "04:32 PM"},
-    {"name": "Aranco", "interval": 1440, "last_time": "04:33 PM"},
+    {"name": "Araneo", "interval": 1440, "last_time": "04:33 PM"},
     {"name": "Livera", "interval": 1440, "last_time": "04:36 PM"},
     {"name": "Undomiel", "interval": 1440, "last_time": "04:42 PM"},
     {"name": "Amentis", "interval": 1740, "last_time": "04:42 PM"},
@@ -35,14 +35,14 @@ boss_data = [
 # ========================
 
 def calculate_next_time(last_time_str, interval_minutes):
-    """Always return next spawn in the future."""
-    today = datetime.now().replace(second=0, microsecond=0)
+    """Calculate next spawn based on last kill time + interval, always rolling forward."""
+    today = datetime.now().date()
     last_time = datetime.strptime(last_time_str, "%I:%M %p").replace(
         year=today.year, month=today.month, day=today.day
     )
     next_time = last_time + timedelta(minutes=interval_minutes)
 
-    # Keep adding interval until next_time is in the future
+    # Keep adding interval until it's in the future
     while next_time <= datetime.now():
         next_time += timedelta(minutes=interval_minutes)
 
@@ -57,7 +57,7 @@ def get_countdown(next_time):
 st.set_page_config(page_title="Lord 9 Boss Timers", layout="wide")
 
 st.markdown(
-    "<h1 style='text-align: center; color: orange;'>⏳ Lord 9 Boss Timers (Live Updating)</h1>",
+    "<h1 style='text-align: center; color: orange;'>⏳ Lord 9 Boss Timers (Adjusted Target Dates)</h1>",
     unsafe_allow_html=True,
 )
 
@@ -69,13 +69,24 @@ for boss in boss_data:
     last_time, next_time = calculate_next_time(boss["last_time"], boss["interval"])
     countdown = get_countdown(next_time)
 
+    # Default target date = real next_time
+    target_date = next_time
+
+    # Adjustment: Ego → Supore target dates only
+    if boss["name"] in ["Ego", "Aranco", "Livera", "Undomiel", "Amentis",
+                        "General Aquleus", "Baron Braudmore", "Gareth",
+                        "Shuliar", "Larba", "Catena", "Lady Dalia",
+                        "Titore", "Duplican", "Wannitas", "Metus",
+                        "Asta", "Ordo", "Secreta", "Supore"]:
+        target_date = target_date - timedelta(days=1)
+
     data.append({
         "Name": boss["name"],
         "Interval": boss["interval"],
         "Last Time": last_time.strftime("%I:%M %p"),
         "Countdown": str(countdown).split(".")[0],
         "Next Time": next_time.strftime("%I:%M %p"),
-        "Target Date": next_time.strftime("%Y-%m-%d %I:%M:%S %p"),
+        "Target Date": target_date.strftime("%Y-%m-%d %I:%M:%S %p"),
     })
 
 df = pd.DataFrame(data)
