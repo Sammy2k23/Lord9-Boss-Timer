@@ -41,10 +41,10 @@ class TimerEntry:
             parsed_time -= timedelta(days=1)
 
         self.last_time = parsed_time
-        self.update_next()
+        self.next_time = self.last_time + timedelta(seconds=self.interval)
 
     def update_next(self):
-        self.next_time = self.last_time + timedelta(seconds=self.interval)
+        """Automatically roll over the next_time if it has passed."""
         while self.next_time < datetime.now():
             self.last_time = self.next_time
             self.next_time = self.last_time + timedelta(seconds=self.interval)
@@ -78,15 +78,17 @@ class TimerEntry:
 st.set_page_config(page_title="Lord9 Boss Timer", layout="wide")
 st.title("Lord9 Boss Timer")
 
-# Auto-refresh every second
+# Auto-refresh every 1 second
 st_autorefresh(interval=1000, key="timer_refresh")
 
-# Initialize and update timers
+# Initialize timers
 timers = [TimerEntry(*data) for data in timers_data]
-for t in timers:
-    t.update_next()
 
-# Sort by closest countdown
+# Update next_time for each boss
+for t in timers:
+    t.update_next()  # <- This ensures next_time is always in the future
+
+# Sort by countdown
 timers_sorted = sorted(timers, key=lambda x: x.countdown())
 
 # Build HTML table
