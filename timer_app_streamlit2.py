@@ -1,124 +1,128 @@
 import streamlit as st
-import pandas as pd
 from datetime import datetime, timedelta
+import pandas as pd
 from streamlit_autorefresh import st_autorefresh
 
-# Auto-refresh every 1 second
-st_autorefresh(interval=1000, key="timer_refresh")
-
-# Boss data (updated, FRIOX removed, Lady Dalia resynced)
-data = [
-    {"Name": "Venatus", "Interval": 600, "Last Time": "12:31 PM"},
-    {"Name": "Viorent", "Interval": 600, "Last Time": "12:32 PM"},
-    {"Name": "Ego", "Interval": 1260, "Last Time": "01:32 PM"},
-    {"Name": "Araneo", "Interval": 1440, "Last Time": "04:36 PM"},
-    {"Name": "Livera", "Interval": 1440, "Last Time": "04:36 PM"},
-    {"Name": "Undomiel", "Interval": 1440, "Last Time": "04:36 PM"},
-    {"Name": "Amentis", "Interval": 1740, "Last Time": "04:42 PM"},
-    {"Name": "General Aquleus", "Interval": 1920, "Last Time": "04:47 PM"},
-    {"Name": "Baron Braudmore", "Interval": 1920, "Last Time": "04:37 PM"},
-    {"Name": "Gareth", "Interval": 2100, "Last Time": "04:39 PM"},
-    {"Name": "Shuliar", "Interval": 2100, "Last Time": "04:39 PM"},
-    {"Name": "Larba", "Interval": 2100, "Last Time": "04:55 PM"},
-    {"Name": "Catena", "Interval": 2100, "Last Time": "05:12 PM"},
-    {"Name": "Lady Dalia", "Interval": 1080, "Last Time": "04:42 AM"},  # Resynced
-    {"Name": "Titore", "Interval": 2220, "Last Time": "04:36 PM"},
-    {"Name": "Duplican", "Interval": 2880, "Last Time": "04:36 PM"},
-    {"Name": "Wannitas", "Interval": 2880, "Last Time": "04:36 PM"},
-    {"Name": "Metus", "Interval": 2880, "Last Time": "04:46 PM"},
-    {"Name": "Asta", "Interval": 2880, "Last Time": "04:46 PM"},
-    {"Name": "Ordo", "Interval": 3720, "Last Time": "04:59 PM"},
-    {"Name": "Secreta", "Interval": 3720, "Last Time": "05:07 AM"},
-    {"Name": "Supore", "Interval": 3720, "Last Time": "05:15 PM"},
+# Timer data
+timers_data = [
+    ("Venatus", 600, "12:31 PM"),
+    ("Viorent", 600, "12:32 PM"),
+    ("Ego", 1260, "04:32 PM"),
+    ("Araneo", 1440, "04:33 PM"),
+    ("Livera", 1440, "04:36 PM"),
+    ("Undomiel", 1440, "04:42 PM"),
+    ("Amentis", 1740, "04:42 PM"),
+    ("General Aqulcus", 1740, "04:45 PM"),
+    ("Baron Braudmore", 1920, "04:37 PM"),
+    ("Gareth", 1920, "04:38 PM"),
+    ("Shuliar", 2100, "04:49 PM"),
+    ("Larba", 2100, "04:55 PM"),
+    ("Catena", 2100, "05:12 PM"),
+    ("Lady Dalia", 1080, "10:42 AM"),
+    ("Titore", 2220, "04:58 PM"),
+    ("Duplican", 2880, "04:36 PM"),
+    ("Wannitas", 2880, "04:40 PM"),
+    ("Metus", 2880, "04:46 PM"),
+    ("Asta", 3720, "04:53 PM"),
+    ("Ordo", 3720, "04:59 PM"),
+    ("Secreta", 3720, "05:07 PM"),
+    ("Supore", 3720, "05:15 PM"),
 ]
 
-df = pd.DataFrame(data)
+# TimerEntry class
+class TimerEntry:
+    def __init__(self, name, interval_minutes, last_time_str):
+        self.name = name
+        self.interval_minutes = interval_minutes
+        self.interval = interval_minutes * 60
 
-st.set_page_config(page_title="Timer App", layout="wide")
-st.title("⏳ Lord 9 Boss Timers (Live Updating)")
+        today = datetime.now().date()
+        parsed_time = datetime.strptime(f"{today} {last_time_str}", "%Y-%m-%d %I:%M %p")
+        if parsed_time > datetime.now():
+            parsed_time -= timedelta(days=1)
+        self.last_time = parsed_time
+        self.update_next()
 
-placeholder = st.empty()
+    def update_next(self):
+        self.next_time = self.last_time + timedelta(seconds=self.interval)
+        while self.next_time < datetime.now():
+            self.last_time = self.next_time
+            self.next_time = self.last_time + timedelta(seconds=self.interval)
 
-# Function to color countdown
-def color_countdown(val):
-    try:
-        parts = val.split(":")
-        minutes = int(parts[0]) * 60 + int(parts[1])
-        seconds = minutes * 60 + int(parts[2]) if len(parts) == 3 else minutes
-    except:
-        return val
+    def countdown(self):
+        return self.next_time - datetime.now()
 
-    if seconds < 300:  # <5 min
-        return f"<span style='color:red; font-weight:bold;'>{val}</span>"
-    elif seconds < 900:  # <15 min
-        return f"<span style='color:orange;'>{val}</span>"
+    def format_countdown(self):
+        td = self.countdown()
+        total_seconds = int(td.total_seconds())
+        if total_seconds < 0:
+            return "00:00:00"
+        days, rem = divmod(total_seconds, 86400)
+        hours, rem = divmod(rem, 3600)
+        minutes, seconds = divmod(rem, 60)
+        if days > 0:
+            return f"{days}d {hours:02}:{minutes:02}:{seconds:02}"
+        return f"{hours:02}:{minutes:02}:{seconds:02}"
+
+    def format_colored_countdown(self):
+        seconds = self.countdown().total_seconds()
+        if seconds < 60:
+            color = "red"
+        elif seconds < 300:
+            color = "orange"
+        else:
+            color = "green"
+        return f"<span style='color:{color}; font-weight:bold'>{self.format_countdown()}</span>"
+
+# Streamlit app
+st.set_page_config(page_title="Lord9 Boss Timer", layout="wide")
+st.title("Lord9 Boss Timer")
+
+# Refresh every 1 second
+st_autorefresh(interval=1000, key="timer_refresh")
+
+# Initialize timers
+timers = [TimerEntry(*data) for data in timers_data]
+
+# Update timers
+for t in timers:
+    t.update_next()
+
+# Sort timers by countdown
+timers_sorted = sorted(timers, key=lambda x: x.countdown())
+
+# Build dataframe with row highlighting for next boss
+rows = []
+for i, t in enumerate(timers_sorted):
+    if i == 0:  # Next boss
+        style = "background-color:#D1FFD6"  # Light green
     else:
-        return f"<span style='color:green;'>{val}</span>"
+        style = ""
+    rows.append(f"""
+        <tr style="{style}">
+            <td>{t.name}</td>
+            <td>{t.interval_minutes}</td>
+            <td>{t.last_time.strftime("%Y-%m-%d %I:%M %p")}</td>
+            <td>{t.format_colored_countdown()}</td>
+            <td>{t.next_time.strftime("%Y-%m-%d %I:%M %p")}</td>
+        </tr>
+    """)
 
-# Calculate countdowns and target times
-now = datetime.now()
-next_times = []
-target_dates = []
-countdowns = []
-countdown_seconds = []
-highlight_names = []
-updated_last_times = []
+html_table = f"""
+<table border="1" cellpadding="5" cellspacing="0" style="border-collapse:collapse; width:100%">
+    <thead>
+        <tr style="background-color:#A6C8FF">
+            <th>Name</th>
+            <th>Interval (min)</th>
+            <th>Last Time</th>
+            <th>Countdown</th>
+            <th>Next Time</th>
+        </tr>
+    </thead>
+    <tbody>
+        {''.join(rows)}
+    </tbody>
+</table>
+"""
 
-for i, row in df.iterrows():
-    # Parse last time as today’s datetime
-    last_dt = datetime.strptime(row["Last Time"], "%I:%M %p").replace(
-        year=now.year, month=now.month, day=now.day
-    )
-    interval = timedelta(minutes=row["Interval"])
-
-    # Compute next time strictly based on interval
-    next_time = last_dt + interval
-
-    # If already passed, roll forward
-    while next_time <= now:
-        last_dt = next_time
-        next_time = last_dt + interval
-
-    # Countdown
-    countdown = next_time - now
-    countdown_str = str(countdown).split(".")[0]
-
-    # Target date (with adjustment for Ego → Supore)
-    target_date = next_time
-    if row["Name"] in [
-        "Ego", "Araneo", "Livera", "Undomiel", "Amentis",
-        "General Aquleus", "Baron Braudmore", "Gareth",
-        "Shuliar", "Larba", "Catena", "Lady Dalia",
-        "Titore", "Duplican", "Wannitas", "Metus",
-        "Asta", "Ordo", "Secreta", "Supore"
-    ]:
-        target_date = target_date - timedelta(days=1)
-
-    # Save updated values
-    updated_last_times.append(last_dt.strftime("%I:%M %p"))
-    next_times.append(next_time.strftime("%I:%M %p"))
-    target_dates.append(target_date.strftime("%Y-%m-%d %I:%M:%S %p"))
-    countdowns.append(color_countdown(countdown_str))
-    countdown_seconds.append(countdown.total_seconds())
-
-    # Highlight if <5min
-    if countdown.total_seconds() < 300:
-        highlight_names.append(f"<span style='color:red; font-weight:bold;'>{row['Name']}</span>")
-    else:
-        highlight_names.append(row["Name"])
-
-# Update DataFrame
-df["Name"] = highlight_names
-df["Last Time"] = updated_last_times  # fixed rolling last time
-df["Countdown"] = countdowns
-df["Next Time"] = next_times
-df["Target Date"] = target_dates
-
-# Sort bosses almost spawning to top
-df["Seconds Remaining"] = countdown_seconds
-df = df.sort_values("Seconds Remaining")
-df = df.drop(columns=["Seconds Remaining"])
-
-# Display table
-with placeholder.container():
-    st.markdown(df.to_html(escape=False, index=False), unsafe_allow_html=True)
+st.markdown(html_table, unsafe_allow_html=True)
