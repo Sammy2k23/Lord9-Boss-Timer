@@ -1,7 +1,11 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo  # Python 3.9+ only
 from streamlit_autorefresh import st_autorefresh
+
+# Manila timezone
+MANILA = ZoneInfo("Asia/Manila")
 
 # Timer data
 timers_data = [
@@ -36,21 +40,25 @@ class TimerEntry:
         self.interval_minutes = interval_minutes
         self.interval = interval_minutes * 60
 
-        today = datetime.now().date()
+        # Use Manila timezone for "today"
+        today = datetime.now(tz=MANILA).date()
         parsed_time = datetime.strptime(f"{today} {last_time_str}", "%Y-%m-%d %I:%M %p")
-        if parsed_time > datetime.now():
+        parsed_time = parsed_time.replace(tzinfo=MANILA)
+
+        if parsed_time > datetime.now(tz=MANILA):
             parsed_time -= timedelta(days=1)
 
         self.last_time = parsed_time
         self.next_time = self.last_time + timedelta(seconds=self.interval)
 
     def update_next(self):
-        while self.next_time < datetime.now():
+        now = datetime.now(tz=MANILA)
+        while self.next_time < now:
             self.last_time = self.next_time
             self.next_time = self.last_time + timedelta(seconds=self.interval)
 
     def countdown(self):
-        return self.next_time - datetime.now()
+        return self.next_time - datetime.now(tz=MANILA)
 
     def format_countdown(self):
         td = self.countdown()
@@ -88,8 +96,5 @@ df = pd.DataFrame({
     "Next Time": [t.next_time.strftime("%Y-%m-%d %I:%M %p") for t in timers_sorted],
 })
 
-# Highlight next boss row
-def highlight_next(row):
-    return ['background-color: #D1FFD6' if i == 0 else '' for i in range(len(row))]
-
-st.dataframe(df.style.apply(highlight_next, axis=0))
+# Display table without highlighting
+st.dataframe(df.reset_index(drop=True))
