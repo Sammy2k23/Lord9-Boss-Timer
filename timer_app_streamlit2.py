@@ -6,12 +6,12 @@ from streamlit_autorefresh import st_autorefresh
 # Auto-refresh every 1 second
 st_autorefresh(interval=1000, key="timer_refresh")
 
-# Sample data
+# Updated data (Last Times adjusted for Venatus, Viorent, Ego)
 data = [
-    {"Name": "Venatus", "Interval": 600, "Last Time": "02:31 AM"},
-    {"Name": "Viorent", "Interval": 600, "Last Time": "02:32 AM"},
-    {"Name": "Ego", "Interval": 1260, "Last Time": "04:32 PM"},
-    {"Name": "Aranco", "Interval": 1440, "Last Time": "04:36 PM"},
+    {"Name": "Venatus", "Interval": 600, "Last Time": "12:31 PM"},  # updated
+    {"Name": "Viorent", "Interval": 600, "Last Time": "12:32 PM"},  # updated
+    {"Name": "Ego", "Interval": 1260, "Last Time": "01:32 PM"},     # updated
+    {"Name": "Araneo", "Interval": 1440, "Last Time": "04:36 PM"},
     {"Name": "Livera", "Interval": 1440, "Last Time": "04:36 PM"},
     {"Name": "Undomiel", "Interval": 1440, "Last Time": "04:36 PM"},
     {"Name": "Amentis", "Interval": 1740, "Last Time": "04:42 PM"},
@@ -77,7 +77,7 @@ for i, row in df.iterrows():
     countdown_str = str(countdown).split(".")[0]
 
     next_times.append(next_time.strftime("%I:%M %p"))
-    target_dates.append((next_time - timedelta(days=1)).strftime("%Y-%m-%d %I:%M:%S %p"))
+    target_dates.append(next_time.strftime("%Y-%m-%d %I:%M:%S %p"))  # dynamic for all bosses
     countdowns.append(color_countdown(countdown_str))
     countdown_seconds.append(countdown.total_seconds())
 
