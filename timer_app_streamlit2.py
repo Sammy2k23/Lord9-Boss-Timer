@@ -65,28 +65,32 @@ highlight_names = []
 updated_last_times = []
 
 for i, row in df.iterrows():
-    last_time = datetime.strptime(row["Last Time"], "%I:%M %p").replace(
+    # Parse last time as today’s datetime
+    last_dt = datetime.strptime(row["Last Time"], "%I:%M %p").replace(
         year=now.year, month=now.month, day=now.day
     )
     interval = timedelta(minutes=row["Interval"])
-    next_time = last_time + interval
 
-    # Auto-update: if next_time has passed, roll last_time forward
+    # Compute next time strictly based on interval
+    next_time = last_dt + interval
+
+    # If already passed, roll forward
     while next_time <= now:
-        last_time = next_time
-        next_time = last_time + interval
+        last_dt = next_time
+        next_time = last_dt + interval
 
+    # Countdown
     countdown = next_time - now
     countdown_str = str(countdown).split(".")[0]
 
-    # Save updated times
-    updated_last_times.append(last_time.strftime("%I:%M %p"))
+    # Save updated values
+    updated_last_times.append(last_dt.strftime("%I:%M %p"))
     next_times.append(next_time.strftime("%I:%M %p"))
     target_dates.append(next_time.strftime("%Y-%m-%d %I:%M:%S %p"))
     countdowns.append(color_countdown(countdown_str))
     countdown_seconds.append(countdown.total_seconds())
 
-    # Highlight boss name if almost spawning (<5 min)
+    # Highlight if <5min
     if countdown.total_seconds() < 300:
         highlight_names.append(f"<span style='color:red; font-weight:bold;'>{row['Name']}</span>")
     else:
@@ -94,7 +98,7 @@ for i, row in df.iterrows():
 
 # Update DataFrame
 df["Name"] = highlight_names
-df["Last Time"] = updated_last_times  # auto-updated last times
+df["Last Time"] = updated_last_times  # fixed rolling last time
 df["Countdown"] = countdowns
 df["Next Time"] = next_times
 df["Target Date"] = target_dates
